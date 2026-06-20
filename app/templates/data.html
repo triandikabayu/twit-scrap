@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Data — X Scraper{% endblock %}
+
+{% block content %}
+<div class="page">
+    <div class="page-header"
+        style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px">
+        <div>
+            <h1>Tweet Data</h1>
+            <p>Browse and filter scraped tweets</p>
+        </div>
+        <a href="/api/export" class="btn btn-secondary btn-sm" id="exportBtn">Download CSV</a>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+        <div class="search-bar">
+            <div class="form-group">
+                <label>Search Text</label>
+                <input class="input" id="searchText" placeholder="Search tweet text..." oninput="debounceSearch()">
+            </div>
+            <div class="form-group">
+                <label>Keyword</label>
+                <select class="select" id="searchKeyword" onchange="debounceSearch()">
+                    <option value="">All Keywords</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Character</label>
+                <select class="select" id="searchChar" onchange="debounceSearch()">
+                    <option value="">All Characters</option>
+                </select>
+            </div>
+            <div class="form-group" style="min-width:auto">
+                <label>.</label>
+                <button class="btn btn-secondary" onclick="loadData()">Search</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Text</th>
+                        <th>User</th>
+                        <th>Date</th>
+                        <th>Keyword</th>
+                        <th>Engagement</th>
+                        <th>Link</th>
+                    </tr>
+                </thead>
+                <tbody id="dataTableBody">
+                    <tr>
+                        <td colspan="6" class="loading">
+                            <div class="loading-spinner"></div>Loading...
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="6" id="dataTableFooter">—</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <div class="pagination" id="pagination"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPage = 1;
+    let totalPages = 1;
+    let searchTimer = null;
+
+    function debounceSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => { currentPage = 1; loadData(); }, 300);
+    }
+
+    async function loadFilters() {
+        const r = await fetch('/api/stats');
+        const d = await r.json();
+        const kwEl = document.getElementById('searchKeyword');
+        kwEl.innerHTML = '<option value="">All Keywords</option>' +
+            (d.keyword_list || []).map(k => `<option value="${k}">${k}</option>`).join('');
+        const chEl = document.getElementById('searchChar');
+        const ar = await fetch('/api/analysis');
+        const ad = await ar.json();
+        const chars = Object.keys(ad.char_data || {}).sort();
+        chEl.innerHTML = '<option value="">All Characters</option>' +
+            chars.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
+
+    async function loadData() {
+        const tbody = document.getElementById('dataTableBody');
+        tbody.innerHTML = '<tr><td colspan="6" class="loading"><div class="loading-spinner"></div>Loading...</td></tr>';
+
+        const params = new URLSearchParams({
+            page: currentPage,
+            limit: 20,
+            q: document.getElementById('searchText').value,
+            keyword: document.getElementById('searchKeyword').value,
+            char: document.getElementById('searchChar').value
+        });
+
+        try {
+            const r = await fetch('/api/tweets?' + params.toString());
+            const d = await r.json();
+
+            if (!d.tweets || d.tweets.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:32px">No tweets found</td></tr>';
+                document.getElementById('dataTableFooter').textContent = '0 tweets';
+                renderPagination(0, 1);
+                return;
+            }
+
+            tbody.innerHTML = d.tweets.map(t => `
+            <tr>
+                <td style="max-width:350px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(t.full_text)}">
+                    ${escapeHtml(t.full_text.slice(0, 100))}${t.full_text.length > 100 ? '...' : ''}
+                </td>
+                <td>@${escapeHtml(t.user_screen_name)}</td>
+                <td style="white-space:nowrap">${t.date}</td>
+                <td><span class="badge badge-accent">${escapeHtml(t.keyword)}</span></td>
+                <td>${(t.favorite_count || 0) + (t.retweet_count || 0)}</td>
+                <td><a href="${t.url}" target="_blank" style="color:var(--accent);text-decoration:none">Open</a></td>
+            </tr>
+        `).join('');
+
+            document.getElementById('dataTableFooter').textContent = `${d.total} tweets (page ${d.page}/${d.total_pages})`;
+            renderPagination(d.total, d.total_pages);
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--danger);padding:32px">Error loading data</td></tr>';
+        }
+    }
+
+    function renderPagination(total, pages) {
+        totalPages = pages || 1;
+        const el = document.getElementById('pagination');
+        if (total === 0) { el.innerHTML = ''; return; }
+
+        let html = `<button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>&lt;</button>`;
+
+        const start = Math.max(1, currentPage - 2);
+        const end = Math.min(pages, start + 4);
+
+        for (let i = start; i <= end; i++) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+        }
+
+        html += `<button class="page-btn" onclick="goPage(${currentPage + 1})" ${currentPage >= pages ? 'disabled' : ''}>&gt;</button>`;
+        el.innerHTML = html;
+    }
+
+    function goPage(p) {
+        if (p < 1 || p > totalPages) return;
+        currentPage = p;
+        loadData();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function updateExportLink() {
+        const params = new URLSearchParams({
+            q: document.getElementById('searchText').value,
+            keyword: document.getElementById('searchKeyword').value,
+            char: document.getElementById('searchChar').value
+        });
+        document.getElementById('exportBtn').href = '/api/export?' + params.toString();
+    }
+
+    document.getElementById('searchText').addEventListener('input', updateExportLink);
+    document.getElementById('searchKeyword').addEventListener('change', updateExportLink);
+    document.getElementById('searchChar').addEventListener('change', updateExportLink);
+
+    loadFilters();
+    loadData();
+</script>
+{% endblock %}

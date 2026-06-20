@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Akun Twitter — X Scraper{% endblock %}
+
+{% block content %}
+<div class="page">
+    <div class="page-header">
+        <h1>Akun Twitter</h1>
+        <p>Kelola akun dummy biar gak kena rate limit. Pilih akun di halaman Scraper waktu scraping.</p>
+    </div>
+
+    <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+            <h3>Daftar Akun</h3>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nama</th>
+                        <th>Username</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="accountTableBody">
+                    <tr>
+                        <td colspan="4" class="loading">
+                            <div class="loading-spinner"></div>Loading...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>Tambah Akun Baru</h3>
+        </div>
+        <div class="search-bar" style="grid-template-columns:1fr 1fr 1fr 1fr auto">
+            <div class="form-group">
+                <label>Nama</label>
+                <input class="input" id="accName" placeholder="e.g. Akun Dummy 1">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input class="input" id="accEmail" placeholder="twitter@email.com">
+            </div>
+            <div class="form-group">
+                <label>Username</label>
+                <input class="input" id="accUser" placeholder="@handle">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input class="input" type="password" id="accPass" placeholder="password">
+            </div>
+            <div class="form-group" style="min-width:auto">
+                <label>.</label>
+                <button class="btn btn-primary" onclick="addAccount()">Tambah</button>
+            </div>
+        </div>
+        <div class="auth-msg" id="accMsg" style="margin-top:10px"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadAccounts() {
+        const r = await fetch('/api/accounts');
+        const d = await r.json();
+        const tbody = document.getElementById('accountTableBody');
+
+        if (!d.accounts || d.accounts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px">No accounts</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = d.accounts.map(a => {
+            const hasCookies = a.cookies_file && a.cookies_file !== '';
+            const isDefault = a.is_default;
+            return `<tr>
+                <td><code style="font-size:12px">${a.id}</code></td>
+                <td><strong>${escapeHtml(a.name)}</strong> ${isDefault ? '<span class="badge badge-accent">Default</span>' : ''}</td>
+                <td>@${escapeHtml(a.username)}</td>
+                <td><span class="badge ${hasCookies ? 'badge-green' : 'badge-red'}">${hasCookies ? '✅ Cookies OK' : '❌ No cookies'}</span></td>
+                <td>
+                    <button class="btn btn-secondary btn-sm" onclick="genCookies(${a.id})" ${isDefault && hasCookies ? 'disabled' : ''}>Generate Cookies</button>
+                    ${!isDefault ? `<button class="btn btn-danger btn-sm" onclick="deleteAccount(${a.id})">Hapus</button>` : ''}
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function addAccount() {
+        const name = document.getElementById('accName').value.trim();
+        const email = document.getElementById('accEmail').value.trim();
+        const username = document.getElementById('accUser').value.trim();
+        const password = document.getElementById('accPass').value;
+        const msg = document.getElementById('accMsg');
+
+        if (!name || !username) {
+            msg.textContent = 'Nama dan username wajib diisi';
+            msg.style.color = 'var(--danger)';
+            return;
+        }
+
+        const r = await fetch('/api/accounts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, username, password })
+        });
+        const d = await r.json();
+        if (d.status === 'ok') {
+            document.getElementById('accName').value = '';
+            document.getElementById('accEmail').value = '';
+            document.getElementById('accUser').value = '';
+            document.getElementById('accPass').value = '';
+            msg.textContent = 'Akun berhasil ditambahkan';
+            msg.style.color = 'var(--success)';
+            loadAccounts();
+        } else {
+            msg.textContent = d.msg || 'Gagal menambahkan akun';
+            msg.style.color = 'var(--danger)';
+        }
+    }
+
+    async function genCookies(id, force) {
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = 'Opening browser...';
+        try {
+            const r = await fetch('/api/accounts/' + id + '/cookies' + (force ? '?force=1' : ''), { method: 'POST' });
+            const d = await r.json();
+            if (d.status === 'ok') {
+                alert('Cookies berhasil digenerate! Login di browser yang terbuka, lalu tutup browser.');
+            } else if (d.status === 'remote') {
+                showRemoteDialog(d, id);
+            } else {
+                alert('Error: ' + (d.msg || 'Unknown error'));
+            }
+        } catch(e) {
+            alert('Error: ' + e.message);
+        }
+        loadAccounts();
+    }
+
+    function showRemoteDialog(d, id) {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
+        const box = document.createElement('div');
+        box.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:460px;width:100%;text-align:center';
+        box.innerHTML = `
+            <div style="font-size:40px;margin-bottom:12px">🖥️</div>
+            <h2 style="font-size:18px;font-weight:700;margin-bottom:8px">Browser Dibuka di Server</h2>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">${d.msg}</p>
+            <div style="background:var(--bg);border-radius:8px;padding:12px;font-size:12px;text-align:left;margin-bottom:16px;font-family:monospace;word-break:break-all">
+                <div style="color:var(--text-muted);margin-bottom:4px">Atau jalankan manual di server:</div>
+                <code style="color:var(--accent)">${d.command}</code>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-primary" onclick="this.closest('div[style]').remove()" style="flex:1;justify-content:center">OK, Saya Mengerti</button>
+                <button class="btn btn-secondary" onclick="this.closest('div[style]').remove();genCookiesForce(${id})" style="flex:1;justify-content:center">Tetap Jalankan</button>
+            </div>
+        `;
+        overlay.appendChild(box);
+        overlay.addEventListener('click', function(e) { if (e.target === this) this.remove(); });
+        document.body.appendChild(overlay);
+    }
+
+    function genCookiesForce(id) {
+        genCookies(id, true);
+    }
+
+    async function deleteAccount(id) {
+        if (!confirm('Hapus akun ini?')) return;
+        const r = await fetch('/api/accounts/' + id, { method: 'DELETE' });
+        const d = await r.json();
+        if (d.status === 'ok') {
+            loadAccounts();
+            showToast('Akun dihapus');
+        }
+    }
+
+    function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
+
+    function showToast(msg) {
+        const el = document.createElement('div');
+        el.style.cssText = `
+        position:fixed;bottom:24px;right:24px;
+        background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);
+        color:#22c55e;padding:12px 20px;border-radius:12px;
+        font-size:13px;font-weight:500;
+        backdrop-filter:blur(12px);z-index:999;
+        animation:slideIn 0.3s ease;
+    `;
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, 2500);
+    }
+
+    loadAccounts();
+</script>
+{% endblock %}

@@ -1,0 +1,428 @@
+{% extends "base.html" %}
+{% block title %}Keywords — X Scraper{% endblock %}
+
+{% block content %}
+<div class="page">
+    <div class="page-header">
+        <h1>Keyword Manager</h1>
+        <p>Priority search terms run first in the scraper, characters run after</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        {# ─── LEFT: Current Keywords ─── #}
+        <div class="card">
+            <div class="card-header">
+                <h3>Keywords <span style="font-weight:400;font-size:12px;color:var(--text-muted)">(⭐ priority runs first)</span></h3>
+                <span class="badge badge-accent" id="kwCount">0</span>
+            </div>
+            <div class="table-wrap" style="max-height:320px;overflow-y:auto">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:32px"><input type="checkbox" id="selectAllKw" onchange="toggleAllKw()"></th>
+                            <th style="width:32px"></th>
+                            <th>Keyword</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kwTableBody">
+                        <tr>
+                            <td colspan="3" class="loading">
+                                <div class="loading-spinner"></div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+                <button class="btn btn-danger btn-sm" onclick="deleteSelected()">Delete Selected</button>
+                <div class="form-group" style="flex:1;margin-bottom:0;display:flex;gap:8px">
+                    <input class="input" id="manualKeyword" placeholder="Add keyword..." style="flex:1" onkeydown="if(event.key==='Enter')addKeyword()">
+                    <button class="btn btn-primary btn-sm" onclick="addKeyword()">Add</button>
+                </div>
+            </div>
+
+            {# ─── Priority Quick-Add Section ─── #}
+            <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+                <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--accent)">⭐ Priority Search Terms</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+                    <button class="btn btn-sm btn-priority" onclick="addPriority('#wtb cf22')">#wtb cf22</button>
+                    <button class="btn btn-sm btn-priority" onclick="addPriority('wtb cf22')">wtb cf22</button>
+                    <button class="btn btn-sm btn-priority" onclick="addPriority('cf22')">cf22</button>
+                    <button class="btn btn-sm btn-priority" onclick="addPriority('#wts cf22')">#wts cf22</button>
+                    <button class="btn btn-sm btn-priority" onclick="addPriority('cf22 catalog')">cf22 catalog</button>
+                    <button class="btn btn-sm btn-priority" onclick="addPriority('cf22 merch')">cf22 merch</button>
+                    <button class="btn btn-sm btn-priority" onclick="addPriority('cf22 booth')">cf22 booth</button>
+                    <button class="btn btn-sm btn-priority" onclick="addPriority('cf22 haul')">cf22 haul</button>
+                    <button class="btn btn-sm btn-priority" onclick="addPriority('cf22 beli')">cf22 beli</button>
+                    <button class="btn btn-sm btn-priority" onclick="addPriority('comifuro 22')">comifuro 22</button>
+                    <button class="btn btn-sm btn-priority" onclick="addPriority('CF22 habis')">CF22 habis</button>
+                </div>
+                <div style="display:flex;gap:8px">
+                    <input class="input" id="priorityKeyword" placeholder="Custom priority term..." style="flex:1" onkeydown="if(event.key==='Enter')addCustomPriority()">
+                    <button class="btn btn-primary btn-sm" onclick="addCustomPriority()">Add</button>
+                </div>
+            </div>
+        </div>
+
+        {# ─── RIGHT: Fandom Search ─── #}
+        <div class="card">
+            <div class="card-header">
+                <h3>Character Search (auto non-priority)</h3>
+                <span class="badge badge-green" id="fandomStatus">Ready</span>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-bottom:16px">
+                <input class="input" id="fandomInput" placeholder="e.g. Uma Musume, Genshin Impact, Heated Rivalry..."
+                    style="flex:1" onkeydown="if(event.key==='Enter')searchFandom()">
+                <button class="btn btn-primary" id="btnFandomSearch" onclick="searchFandom()">Search</button>
+            </div>
+
+            <div id="fandomResults" style="display:none">
+                <div id="fandomResultHeader"
+                    style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                    <span id="fandomResultInfo" style="font-size:13px;color:var(--text-secondary)"></span>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn btn-primary btn-sm" id="btnAddSelected" onclick="addSelectedFandom()">Add
+                            Selected</button>
+                    </div>
+                </div>
+
+                <div class="table-wrap" style="max-height:350px;overflow-y:auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:40px"><input type="checkbox" id="selectAllFandom"
+                                        onchange="toggleAllFandom()"></th>
+                                <th>Character Name</th>
+                                <th style="width:80px">Source</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fandomTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="fandomLoading" style="display:none;text-align:center;padding:40px">
+                <div class="loading-spinner"></div>
+                <div style="color:var(--text-muted);font-size:13px;margin-top:8px">Searching Wikipedia & local
+                    database...</div>
+            </div>
+
+            <div id="fandomFallback" style="display:none;margin-top:16px">
+                <div class="card" style="padding:16px;background:rgba(234,179,8,0.06);border-color:rgba(234,179,8,0.2)">
+                    <div style="font-size:13px;color:var(--warning);margin-bottom:8px">
+                        No automatic results found for this fandom.
+                    </div>
+                    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">
+                        You can manually type character names below (one per line):
+                    </p>
+                    <textarea class="input" id="manualChars" rows="4"
+                        placeholder="Character 1&#10;Character 2&#10;Character 3" style="resize:vertical"></textarea>
+                    <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="addManualChars()">Add
+                        Characters</button>
+                </div>
+            </div>
+
+            <div id="fandomError" style="display:none;margin-top:16px">
+                <div class="card" style="padding:16px;background:rgba(239,68,68,0.06);border-color:rgba(239,68,68,0.2)">
+                    <div style="font-size:13px;color:var(--danger);margin-bottom:8px">Error</div>
+                    <p id="fandomErrorMsg" style="font-size:12px;color:var(--text-secondary)"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentFandomResults = [];
+    let currentKeywords = [];
+    const STAR_FILLED = '\u2605'; // ⭐
+    const STAR_EMPTY = '\u2606';  // ☆
+
+    async function loadKeywords() {
+        const r = await fetch('/api/keywords');
+        const d = await r.json();
+        currentKeywords = d.keywords || [];
+        const tbody = document.getElementById('kwTableBody');
+        document.getElementById('kwCount').textContent = currentKeywords.length;
+
+        if (currentKeywords.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:24px">No keywords</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = currentKeywords.map((kwObj, i) => {
+            const kw = typeof kwObj === 'string' ? kwObj : kwObj.keyword;
+            const prio = typeof kwObj === 'string' ? 0 : (kwObj.priority ? 1 : 0);
+            const star = prio ? STAR_FILLED : STAR_EMPTY;
+            const starClass = prio ? 'star-on' : 'star-off';
+            return `<tr>
+            <td><input type="checkbox" class="kw-check" value="${i}"></td>
+            <td><span class="star-toggle ${starClass}" data-idx="${i}" onclick="togglePriority(this)">${star}</span></td>
+            <td>${escapeHtml(kw)}</td>
+        </tr>`;
+        }).join('');
+    }
+
+    function togglePriority(el) {
+        const idx = parseInt(el.dataset.idx);
+        const kwObj = currentKeywords[idx];
+        const kw = typeof kwObj === 'string' ? kwObj : kwObj.keyword;
+        const current = typeof kwObj === 'string' ? 0 : (kwObj.priority ? 1 : 0);
+        const next = current ? 0 : 1;
+
+        fetch('/api/keywords/priority', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyword: kw, priority: next })
+        }).then(r => {
+            if (r.ok) {
+                if (typeof currentKeywords[idx] === 'string') {
+                    currentKeywords[idx] = { keyword: kw, priority: !!next };
+                } else {
+                    currentKeywords[idx].priority = !!next;
+                }
+                el.textContent = next ? STAR_FILLED : STAR_EMPTY;
+                el.className = 'star-toggle ' + (next ? 'star-on' : 'star-off');
+            }
+        });
+    }
+
+    function toggleAllKw() {
+        const checked = document.getElementById('selectAllKw').checked;
+        document.querySelectorAll('.kw-check').forEach(c => c.checked = checked);
+    }
+
+    function getSelectedKw() {
+        return [...document.querySelectorAll('.kw-check:checked')].map(c => {
+            const kwObj = currentKeywords[parseInt(c.value)];
+            return typeof kwObj === 'string' ? kwObj : kwObj.keyword;
+        });
+    }
+
+    async function deleteSelected() {
+        const selected = getSelectedKw();
+        if (selected.length === 0) return;
+        if (!confirm(`Delete ${selected.length} keyword(s)?`)) return;
+
+        const r = await fetch('/api/keywords', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keywords: selected })
+        });
+        if (r.ok) {
+            loadKeywords();
+            showToast(`Deleted ${selected.length} keyword(s)`);
+        }
+    }
+
+    async function addKeyword() {
+        const input = document.getElementById('manualKeyword');
+        const kw = input.value.trim();
+        if (!kw) return;
+
+        const r = await fetch('/api/keywords', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keywords: [kw] })
+        });
+        if (r.ok) {
+            input.value = '';
+            loadKeywords();
+            showToast(`Added: ${kw}`);
+        }
+    }
+
+    async function addPriority(kw) {
+        const r = await fetch('/api/keywords', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keywords: [kw], priority: 1 })
+        });
+        if (r.ok) {
+            loadKeywords();
+            showToast(`Added priority: ${kw}`);
+        }
+    }
+
+    async function addCustomPriority() {
+        const input = document.getElementById('priorityKeyword');
+        const kw = input.value.trim();
+        if (!kw) return;
+        await addPriority(kw);
+        input.value = '';
+    }
+
+    async function searchFandom() {
+        const input = document.getElementById('fandomInput');
+        const fandom = input.value.trim();
+        if (!fandom) return;
+
+        const results = document.getElementById('fandomResults');
+        const loading = document.getElementById('fandomLoading');
+        const fallback = document.getElementById('fandomFallback');
+        const error = document.getElementById('fandomError');
+        const status = document.getElementById('fandomStatus');
+        const btn = document.getElementById('btnFandomSearch');
+
+        results.style.display = 'none';
+        fallback.style.display = 'none';
+        error.style.display = 'none';
+        loading.style.display = 'block';
+        status.textContent = 'Searching...';
+        status.className = 'badge badge-warning';
+        btn.disabled = true;
+
+        try {
+            const r = await fetch('/api/fandom/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fandom })
+            });
+            const d = await r.json();
+
+            loading.style.display = 'none';
+            btn.disabled = false;
+
+            if (d.error) {
+                error.style.display = 'block';
+                document.getElementById('fandomErrorMsg').textContent = d.error;
+                status.textContent = 'Error';
+                status.className = 'badge badge-red';
+                return;
+            }
+
+            if (d.characters && d.characters.length > 0) {
+                currentFandomResults = d.characters;
+                renderFandomResults(d.characters, d.source || 'wikipedia');
+                results.style.display = 'block';
+                status.textContent = `${d.characters.length} found`;
+                status.className = 'badge badge-green';
+            } else {
+                fallback.style.display = 'block';
+                status.textContent = 'Not found';
+                status.className = 'badge badge-warning';
+            }
+        } catch (e) {
+            loading.style.display = 'none';
+            btn.disabled = false;
+            error.style.display = 'block';
+            document.getElementById('fandomErrorMsg').textContent = e.message;
+            status.textContent = 'Error';
+            status.className = 'badge badge-red';
+        }
+    }
+
+    function renderFandomResults(chars, source) {
+        const tbody = document.getElementById('fandomTableBody');
+        document.getElementById('fandomResultInfo').textContent =
+            `Found ${chars.length} characters (source: ${source})`;
+
+        tbody.innerHTML = chars.map((c, i) => `
+        <tr>
+            <td><input type="checkbox" class="fandom-check" value="${i}" checked></td>
+            <td>${escapeHtml(c.name || c)}</td>
+            <td><span class="badge badge-accent">${escapeHtml(c.source || source)}</span></td>
+        </tr>
+    `).join('');
+    }
+
+    function toggleAllFandom() {
+        const checked = document.getElementById('selectAllFandom').checked;
+        document.querySelectorAll('.fandom-check').forEach(c => c.checked = checked);
+    }
+
+    function getSelectedFandom() {
+        return [...document.querySelectorAll('.fandom-check:checked')]
+            .map(c => currentFandomResults[parseInt(c.value)])
+            .map(c => c.name || c);
+    }
+
+    async function addSelectedFandom() {
+        const selected = getSelectedFandom();
+        if (selected.length === 0) return;
+
+        const r = await fetch('/api/keywords', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keywords: selected, priority: 0 })
+        });
+        if (r.ok) {
+            loadKeywords();
+            showToast(`Added ${selected.length} characters`);
+        }
+    }
+
+    async function addManualChars() {
+        const textarea = document.getElementById('manualChars');
+        const lines = textarea.value.split('\n').map(l => l.trim()).filter(l => l);
+        if (lines.length === 0) return;
+
+        const r = await fetch('/api/keywords', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keywords: lines, priority: 0 })
+        });
+        if (r.ok) {
+            textarea.value = '';
+            loadKeywords();
+            showToast(`Added ${lines.length} characters`);
+        }
+    }
+
+    function showToast(msg) {
+        const el = document.createElement('div');
+        el.style.cssText = `
+        position:fixed;bottom:24px;right:24px;
+        background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);
+        color:#22c55e;padding:12px 20px;border-radius:12px;
+        font-size:13px;font-weight:500;
+        backdrop-filter:blur(12px);z-index:999;
+        animation:slideIn 0.3s ease;
+    `;
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, 2500);
+    }
+
+    function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
+
+    loadKeywords();
+</script>
+
+<style>
+.star-toggle {
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    transition: transform 0.15s ease;
+    display: inline-block;
+}
+.star-toggle:hover { transform: scale(1.3); }
+.star-on { color: var(--accent); }
+.star-off { color: var(--text-muted); }
+.star-off:hover { color: var(--accent); }
+
+.btn-priority {
+    background: rgba(var(--accent-rgb, 249, 115, 22), 0.08);
+    border: 1px solid rgba(var(--accent-rgb, 249, 115, 22), 0.15);
+    color: var(--accent);
+    border-radius: 16px;
+    padding: 3px 12px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+.btn-priority:hover {
+    background: rgba(var(--accent-rgb, 249, 115, 22), 0.15);
+    border-color: var(--accent);
+}
+</style>
+{% endblock %}

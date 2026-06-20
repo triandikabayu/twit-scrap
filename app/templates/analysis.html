@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% block title %}Analysis — X Scraper{% endblock %}
+
+{% block content %}
+<div class="page">
+    <div class="page-header">
+        <h1>Character Analysis</h1>
+        <p>Detailed breakdown of characters found in ISO tweets</p>
+    </div>
+
+    <div class="chart-grid">
+        <div class="card chart-full">
+            <div class="card-header">
+                <h3>Character Rankings</h3>
+            </div>
+            <div class="table-wrap">
+                <table id="charTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Character</th>
+                            <th>Total ISO</th>
+                            <th>Desperate</th>
+                            <th>Urgency Score</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="charTableBody">
+                        <tr>
+                            <td colspan="6" class="loading">
+                                <div class="loading-spinner"></div>Loading...
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="6" id="charTableFooter">—</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        <div class="card chart-full">
+            <div class="card-header">
+                <h3>Top Characters Bar</h3>
+            </div>
+            <div class="chart-container"><canvas id="topBarChart"></canvas></div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h3>Urgency Distribution</h3>
+            </div>
+            <div class="chart-container" style="max-height:280px"><canvas id="urgencyPieChart"></canvas></div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h3>Desperate Leaders</h3>
+            </div>
+            <div class="chart-container" style="max-height:280px"><canvas id="desperateChart"></canvas></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="charModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle">Character</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let topChart, urgencyPie, desperateChart;
+
+    function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
+
+    async function loadAnalysis() {
+        const r = await fetch('/api/analysis');
+        const d = await r.json();
+        const tbody = document.getElementById('charTableBody');
+        const footer = document.getElementById('charTableFooter');
+
+        const chars = Object.entries(d.char_data || {}).sort(
+            (a, b) => b[1].total - a[1].total || b[1].desperate - a[1].desperate
+        );
+
+        if (chars.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:32px">No character data</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = chars.map(([name, data], i) => `
+        <tr class="clickable" onclick="showCharTweets('${escapeHtml(name)}')">
+            <td>${i + 1}</td>
+            <td><strong>${escapeHtml(name)}</strong></td>
+            <td>${data.total}</td>
+            <td><span class="badge ${data.desperate > 0 ? 'badge-red' : 'badge-accent'}">${data.desperate}</span></td>
+            <td>${data.score_sum}</td>
+            <td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();showCharTweets('${escapeHtml(name)}')">View</button></td>
+        </tr>
+    `).join('');
+
+        footer.textContent = `Showing ${chars.length} characters`;
+
+        renderTopChart(chars.slice(0, 15));
+        renderUrgencyPie(d.urgency_dist || {});
+        renderDesperateChart(chars.filter(c => c[1].desperate > 0).slice(0, 10));
+    }
+
+    function renderTopChart(data) {
+        const ctx = document.getElementById('topBarChart').getContext('2d');
+        if (topChart) topChart.destroy();
+        if (!data.length) return;
+        topChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d[0]),
+                datasets: [{
+                    label: 'ISO Tweets',
+                    data: data.map(d => d[1].total),
+                    backgroundColor: 'rgba(108, 99, 255, 0.6)',
+                    borderColor: '#6C63FF',
+                    borderWidth: 1,
+                    borderRadius: 6
+                },
+                {
+                    label: 'Desperate',
+                    data: data.map(d => d[1].desperate),
+                    backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                    borderColor: '#ef4444',
+                    borderWidth: 1,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        labels: { color: '#a0a0b0', usePointStyle: true }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#a0a0b0' }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#a0a0b0' }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderUrgencyPie(data) {
+        const ctx = document.getElementById('urgencyPieChart').getContext('2d');
+        if (urgencyPie) urgencyPie.destroy();
+        const keys = Object.keys(data);
+        if (!keys.length) return;
+        const colors = { 'Desperate': '#ef4444', 'Normal': '#eab308', 'Santai': '#6C63FF' };
+        urgencyPie = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: keys.map(k => k + ' (' + data[k] + ')'),
+                datasets: [{
+                    data: Object.values(data),
+                    backgroundColor: keys.map(k => colors[k] || '#a0a0b0'),
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#a0a0b0', padding: 16, usePointStyle: true }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderDesperateChart(data) {
+        const ctx = document.getElementById('desperateChart').getContext('2d');
+        if (desperateChart) desperateChart.destroy();
+        if (!data.length) return;
+        desperateChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d[0]),
+                datasets: [{
+                    label: 'Desperate',
+                    data: data.map(d => d[1].desperate),
+                    backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                    borderColor: '#ef4444',
+                    borderWidth: 1,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#a0a0b0' }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: '#a0a0b0' }
+                    }
+                }
+            }
+        });
+    }
+
+    async function showCharTweets(name) {
+        document.getElementById('charModal').classList.add('show');
+        document.getElementById('modalTitle').textContent = name;
+        document.getElementById('modalBody').innerHTML = '<div class="loading"><div class="loading-spinner"></div>Loading tweets...</div>';
+        try {
+            const r = await fetch('/api/tweets?char=' + encodeURIComponent(name) + '&limit=30');
+            const d = await r.json();
+            if (!d.tweets || d.tweets.length === 0) {
+                document.getElementById('modalBody').innerHTML = '<p style="color:var(--text-muted);text-align:center">No tweets found for this character</p>';
+                return;
+            }
+            document.getElementById('modalBody').innerHTML = d.tweets.map(t => `
+            <div class="tweet-item">
+                <div style="font-size:13px;color:var(--text-primary);margin-bottom:6px">${escapeHtml(t.full_text)}</div>
+                <div style="font-size:11px;color:var(--text-muted);display:flex;gap:12px">
+                    <span>@${escapeHtml(t.user_screen_name)}</span>
+                    <span>${t.date}</span>
+                    <span class="badge badge-accent">${escapeHtml(t.keyword)}</span>
+                    <a href="${t.url}" target="_blank" style="color:var(--accent-1)">Open</a>
+                </div>
+            </div>
+        `).join('');
+        } catch (e) {
+            document.getElementById('modalBody').innerHTML = '<p style="color:var(--danger)">Error loading tweets</p>';
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('charModal').classList.remove('show');
+    }
+
+    document.getElementById('charModal').addEventListener('click', function (e) {
+        if (e.target === this) closeModal();
+    });
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeModal();
+    });
+
+    loadAnalysis();
+</script>
+{% endblock %}

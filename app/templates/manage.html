@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Manage Data — X Scraper{% endblock %}
+
+{% block content %}
+<div class="page" style="max-width:none">
+    <div class="page-header">
+        <h1>Manage Data</h1>
+        <p>Delete scraped tweets by keyword or character</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div class="card">
+            <div class="card-header">
+                <h3>Delete by Keyword</h3>
+            </div>
+            <div style="display:flex;gap:8px">
+                <input class="input" id="kwInput" placeholder="Keyword to delete..." style="flex:1" onkeydown="if(event.key==='Enter')deleteByKeywordInput()">
+                <button class="btn btn-danger" onclick="deleteByKeywordInput()">Delete</button>
+            </div>
+            <div id="kwResult" style="margin-top:12px"></div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h3>Delete by Character</h3>
+            </div>
+            <div style="display:flex;gap:8px">
+                <input class="input" id="charInput" placeholder="Character name..." style="flex:1" onkeydown="if(event.key==='Enter')deleteByChar()">
+                <button class="btn btn-danger" onclick="deleteByChar()">Delete</button>
+            </div>
+            <div id="charResult" style="margin-top:12px"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>Tweet Summary by Keyword</h3>
+            <button class="btn btn-danger btn-sm" onclick="deleteAll()">Delete All</button>
+        </div>
+        <div class="table-wrap" style="max-height:450px;overflow-y:auto">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Keyword</th>
+                        <th style="width:100px">Tweets</th>
+                        <th style="width:120px">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="summaryBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadSummary() {
+        const r = await fetch('/api/tweets/summary');
+        const d = await r.json();
+        const tbody = document.getElementById('summaryBody');
+        if (!d.keywords || d.keywords.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:24px">No tweets yet</td></tr>';
+            return;
+        }
+        tbody.innerHTML = d.keywords.map(kw => `
+            <tr>
+                <td><span class="badge badge-accent">${escapeHtml(kw.keyword)}</span></td>
+                <td><strong>${kw.count}</strong></td>
+                <td>
+                    <button class="btn btn-danger btn-sm" onclick="deleteByKeyword('${escapeHtml(kw.keyword)}')">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function deleteByKeyword(keyword) {
+        if (!confirm(`Delete all tweets for keyword "${keyword}"?`)) return;
+        const r = await fetch('/api/tweets', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyword }),
+        });
+        const d = await r.json();
+        if (d.status === 'ok') {
+            showToast(`Deleted ${d.deleted} tweets`);
+            loadSummary();
+        }
+    }
+
+    async function deleteByKeywordInput() {
+        const kw = document.getElementById('kwInput').value.trim();
+        if (!kw) return;
+        await deleteByKeyword(kw);
+        document.getElementById('kwInput').value = '';
+    }
+
+    async function deleteAll() {
+        if (!confirm('Delete ALL tweets? This cannot be undone!')) return;
+        const r = await fetch('/api/tweets', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+        });
+        const d = await r.json();
+        if (d.status === 'ok') {
+            showToast(`Deleted ${d.deleted} tweets`);
+            loadSummary();
+        }
+    }
+
+    async function deleteByChar() {
+        const char = document.getElementById('charInput').value.trim();
+        if (!char) return;
+        if (!confirm(`Delete all tweets mentioning "${char}"?`)) return;
+        const r = await fetch('/api/tweets', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ char }),
+        });
+        const d = await r.json();
+        const el = document.getElementById('charResult');
+        if (d.status === 'ok') {
+            el.innerHTML = `<div style="color:var(--success)">Deleted ${d.deleted} tweets mentioning "${escapeHtml(char)}"</div>`;
+            document.getElementById('charInput').value = '';
+            loadSummary();
+        } else {
+            el.innerHTML = `<div style="color:var(--danger)">Error: ${escapeHtml(d.msg)}</div>`;
+        }
+    }
+
+    function showToast(msg) {
+        const el = document.createElement('div');
+        el.style.cssText = 'position:fixed;bottom:20px;right:20px;background:var(--bg-card);border:1px solid var(--border);padding:12px 20px;border-radius:8px;z-index:9999;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,0.2)';
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 3000);
+    }
+
+    function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
+
+    loadSummary();
+</script>
+{% endblock %}

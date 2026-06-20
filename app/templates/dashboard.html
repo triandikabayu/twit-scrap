@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block topbar %}{% endblock %}
+{% block title %}X Scraper{% endblock %}
+{% block head %}
+<script>
+    const STATS_URL = '/api/stats';
+    function fmt(n) { return n.toLocaleString('id-ID'); }
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="homepage">
+    <div class="homepage-brand"><span id="typewriter"></span><span class="cursor">|</span></div>
+    <div class="homepage-handle">@your.tweet.scraper.analyzer</div>
+
+    <div class="homepage-search">
+        <input type="text" placeholder="Search tweets, keywords, characters..." id="searchInput">
+        <button onclick="searchQuery()">Search</button>
+    </div>
+
+    <div class="homepage-hint">
+        fields, operators (&gt;=, !=, ...), AND, OR, NOT, parentheses &bull;
+        <a href="/data">advanced search</a>
+    </div>
+
+    <div class="homepage-actions">
+        <a href="/scraper" class="homepage-btn homepage-btn-primary">
+            Scrape Tweets
+        </a>
+        <a href="/analysis" class="homepage-btn homepage-btn-secondary">
+            Analysis
+        </a>
+        <a href="/data" class="homepage-btn homepage-btn-secondary">
+            View Data
+        </a>
+        <a href="/keywords" class="homepage-btn homepage-btn-secondary">Keywords</a>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function searchQuery() {
+        const q = document.getElementById('searchInput').value.trim();
+        if (q) window.location.href = '/data?search=' + encodeURIComponent(q);
+    }
+
+    document.getElementById('searchInput').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') searchQuery();
+    });
+
+    // Typewriter
+    const phrases = [
+        'X Scraper',
+        'Ekstraksi Twitter',
+        'سكرابر إكس',
+        'Extracteur X',
+        'X Schraper',
+        'X-Abkratzer',
+    ];
+    let idx = 0, ch = 0, isDeleting = false;
+    const el = document.getElementById('typewriter');
+    function type() {
+        const phrase = phrases[idx];
+        if (isDeleting) {
+            el.textContent = phrase.substring(0, ch--);
+            if (ch < 0) { isDeleting = false; idx = (idx + 1) % phrases.length; }
+            setTimeout(type, 40);
+        } else {
+            el.textContent = phrase.substring(0, ++ch);
+            if (ch >= phrase.length) {
+                isDeleting = true;
+                setTimeout(type, 4000);
+            } else {
+                setTimeout(type, 100);
+            }
+        }
+    }
+    type();
+</script>
+{% endblock %}

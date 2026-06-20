@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}X Scraper{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    {% block head %}{% endblock %}
+</head>
+
+<body>
+    {% block topbar %}
+    <div class="topbar">
+        <div class="topbar-left">
+            <button class="burger-btn" onclick="toggleDrawer()" aria-label="Menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+        <a href="/" class="topbar-brand">X Scraper</a>
+        <div class="topbar-right">
+            <div class="session-selector">
+                <span class="session-user">{{ username or 'anonymous' }}</span>
+                <span class="session-sep">|</span>
+                <span class="session-tweets" id="sessionTweetCount">0</span>
+                <button class="btn-logout" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="drawer-overlay" id="drawerOverlay" onclick="toggleDrawer()"></div>
+    <div class="drawer" id="drawer">
+        <div class="drawer-logo">
+            X Scraper
+            <span>X/Tweet Analyzer</span>
+        </div>
+        <nav class="drawer-nav">
+            <a href="/" class="drawer-item {{ 'active' if active == 'dashboard' }}">
+                <span>Dashboard</span>
+            </a>
+            <a href="/scraper" class="drawer-item {{ 'active' if active == 'scraper' }}">
+                <span>Scraper</span>
+            </a>
+            <a href="/analysis" class="drawer-item {{ 'active' if active == 'analysis' }}">
+                <span>Analysis</span>
+            </a>
+            <a href="/data" class="drawer-item {{ 'active' if active == 'data' }}">
+                <span>Data</span>
+            </a>
+            <a href="/keywords" class="drawer-item {{ 'active' if active == 'keywords' }}">
+                <span>Keywords</span>
+            </a>
+            <a href="/accounts" class="drawer-item {{ 'active' if active == 'accounts' }}">
+                <span>Akun Twitter</span>
+            </a>
+            <a href="/manage" class="drawer-item {{ 'active' if active == 'manage' }}">
+                <span>Manage Data</span>
+            </a>
+        </nav>
+        <div class="drawer-footer">
+            <button class="theme-btn" onclick="toggleTheme()">
+                <span id="themeLabel">Dark</span>
+            </button>
+        </div>
+    </div>
+    {% endblock %}
+
+    <div id="scrapeBanner" class="scrape-banner" style="display:none">
+        <div class="scrape-banner-inner">
+            <span class="scrape-banner-dot"></span>
+            <span id="scrapeBannerText">Scraping in progress...</span>
+            <a href="/scraper" class="scrape-banner-link">View →</a>
+        </div>
+    </div>
+
+    <div class="main-wrap">
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer class="site-footer">
+        <div class="footer-stats" id="footerStats">
+            <div class="footer-stat">
+                <span class="footer-stat-num" id="footTotal">--</span>
+                <span class="footer-stat-label">Tweets</span>
+            </div>
+            <div class="footer-stat">
+                <span class="footer-stat-num" id="footIso">--</span>
+                <span class="footer-stat-label">ISO/WTB</span>
+            </div>
+            <div class="footer-stat">
+                <span class="footer-stat-num" id="footChars">--</span>
+                <span class="footer-stat-label">Characters</span>
+            </div>
+            <div class="footer-stat">
+                <span class="footer-stat-num" id="footKeywords">--</span>
+                <span class="footer-stat-label">Keywords</span>
+            </div>
+        </div>
+        <div class="footer-meta">X Scraper v1.0</div>
+    </footer>
+
+    <script>
+        const SESSION_USER = sessionStorage.getItem('cf_user') || '';
+        let sessionExpiry = null;
+        let expiryTimer = null;
+
+        function createExpiryBar() {
+            let bar = document.getElementById('sessionExpiryBar');
+            if (!bar) {
+                bar = document.createElement('div');
+                bar.id = 'sessionExpiryBar';
+                bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:999;background:var(--bg-card);border-top:1px solid var(--border);padding:8px 16px;font-size:12px;display:none;align-items:center;justify-content:center;gap:8px';
+                document.body.appendChild(bar);
+            }
+            return bar;
+        }
+
+        function updateExpiryBar(remaining) {
+            const bar = createExpiryBar();
+            if (remaining <= 0) {
+                bar.style.display = 'none';
+                return;
+            }
+            const mins = Math.floor(remaining / 60);
+            const secs = remaining % 60;
+            const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+
+            if (remaining <= 60) {
+                bar.style.display = 'flex';
+                bar.style.background = 'rgba(239,68,68,0.12)';
+                bar.style.borderColor = 'rgba(239,68,68,0.3)';
+                bar.innerHTML = `
+                    <span style="color:var(--danger);font-weight:600">Session expires in ${timeStr}</span>
+                    <button onclick="logout()" style="background:var(--danger);color:white;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px;font-weight:600">Logout</button>
+                `;
+            } else if (remaining <= 300) {
+                bar.style.display = 'flex';
+                bar.style.background = 'rgba(234,179,8,0.08)';
+                bar.style.borderColor = 'rgba(234,179,8,0.2)';
+                bar.innerHTML = `<span style="color:var(--warning)">Session expires in ${timeStr}</span>`;
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        function startExpiryCountdown(remaining) {
+            if (expiryTimer) clearInterval(expiryTimer);
+            sessionExpiry = remaining;
+            updateExpiryBar(remaining);
+            expiryTimer = setInterval(() => {
+                sessionExpiry--;
+                updateExpiryBar(sessionExpiry);
+                if (sessionExpiry <= 0) {
+                    clearInterval(expiryTimer);
+                    logout();
+                }
+            }, 1000);
+        }
+
+        async function verifySession() {
+            try {
+                const r = await fetch('/api/verify');
+                const d = await r.json();
+                if (!d.valid) {
+                    document.cookie = 'cf_session=; path=/; max-age=0';
+                    sessionStorage.removeItem('cf_session');
+                    sessionStorage.removeItem('cf_user');
+                    return false;
+                }
+                if (d.expires_in !== undefined) {
+                    startExpiryCountdown(d.expires_in);
+                }
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function logout() {
+            document.cookie = 'cf_session=; path=/; max-age=0';
+            sessionStorage.removeItem('cf_session');
+            sessionStorage.removeItem('cf_user');
+            if (expiryTimer) clearInterval(expiryTimer);
+            window.location.href = '/login';
+        }
+
+        async function initSession() {
+            const valid = await verifySession();
+            if (!valid) {
+                window.location.href = '/login';
+                return;
+            }
+            loadFooterStats();
+            checkScrapeStatus();
+            // Re-verify every 60s to sync countdown with server
+            setInterval(async () => {
+                const ok = await verifySession();
+                if (!ok) logout();
+            }, 60000);
+        }
+
+        async function checkScrapeStatus() {
+            try {
+                const r = await fetch('/api/scrape/status');
+                const d = await r.json();
+                const banner = document.getElementById('scrapeBanner');
+                if (d.running && d.status !== 'done') {
+                    banner.style.display = 'block';
+                    document.getElementById('scrapeBannerText').textContent =
+                        `Scraping: ${d.current}/${d.total} keywords · ${d.total_new} tweets`;
+                } else {
+                    banner.style.display = 'none';
+                }
+            } catch (e) { }
+            // Poll every 5s while on non-scraper pages
+            if (!window.location.pathname.includes('/scraper')) {
+                setTimeout(checkScrapeStatus, 5000);
+            }
+        }
+
+        // ── Theme ──
+        const theme = localStorage.getItem('cf-theme') ||
+            (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', theme);
+
+        function toggleTheme() {
+            const cur = document.documentElement.getAttribute('data-theme');
+            const next = cur === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('cf-theme', next);
+            const label = document.getElementById('themeLabel');
+            if (label) label.textContent = next === 'dark' ? 'Dark' : 'Light';
+        }
+
+        function toggleDrawer() {
+            document.getElementById('drawer').classList.toggle('open');
+            document.getElementById('drawerOverlay').classList.toggle('open');
+            document.querySelector('.burger-btn').classList.toggle('active');
+        }
+
+        async function loadFooterStats() {
+            try {
+                const r = await fetch('/api/stats');
+                const d = await r.json();
+                ['Total', 'Iso', 'Chars', 'Keywords'].forEach((key, i) => {
+                    const el = document.getElementById('foot' + key);
+                    if (el) el.textContent = (d[['total_tweets', 'iso_tweets', 'unique_chars', 'keywords'][i]] || 0).toLocaleString('id-ID');
+                });
+                const tc = document.getElementById('sessionTweetCount');
+                if (tc) tc.textContent = (d.total_tweets || 0).toLocaleString('id-ID');
+            } catch (e) { console.error('Stats:', e); }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const label = document.getElementById('themeLabel');
+            if (label) label.textContent = theme === 'dark' ? 'Dark' : 'Light';
+            initSession();
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

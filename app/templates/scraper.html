@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% block title %}Scraper — X Scraper{% endblock %}
+
+{% block content %}
+<div class="page" style="max-width:none">
+    <div class="page-header">
+        <h1>Live Scraper</h1>
+        <p>Run tweet scraper in real-time</p>
+    </div>
+
+    <div class="card" style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+            <div class="scraper-status">
+                <span class="status-dot idle" id="statusDot"></span>
+                <span id="statusText" style="font-weight:600">Idle</span>
+            </div>
+            <div class="form-group" style="margin-bottom:0;min-width:160px">
+                <select class="select" id="accountSelect" style="font-size:12px">
+                    <option value="">Default Account</option>
+                </select>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-primary" id="btnStart" onclick="startScrape()">Start Scraping</button>
+                <button class="btn btn-danger" id="btnStop" onclick="stopScrape()" disabled>Stop</button>
+            </div>
+        </div>
+
+        <div id="keywordSelector" style="margin-top:16px;display:none">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <label style="font-size:13px;font-weight:600;color:var(--text-primary)">Keywords</label>
+                <div style="display:flex;gap:8px">
+                    <button class="btn btn-sm" onclick="toggleAllKeywords(true)" style="font-size:11px;padding:4px 10px">Select All</button>
+                    <button class="btn btn-sm" onclick="toggleAllKeywords(false)" style="font-size:11px;padding:4px 10px">Clear</button>
+                </div>
+            </div>
+            <div id="keywordList" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
+
+        <div class="scraper-progress" id="progressSection" style="display:none">
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="scraper-counters">
+                <div class="counter">
+                    <span class="counter-num" id="counterKeyword">0</span>
+                    <span class="counter-label">Keywords</span>
+                </div>
+                <div class="counter">
+                    <span class="counter-num" id="counterNew">0</span>
+                    <span class="counter-label">New Tweets</span>
+                </div>
+                <div class="counter">
+                    <span class="counter-num" id="counterTotal">0</span>
+                    <span class="counter-label">Total</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card">
+            <div class="card-header">
+                <h3>Live Feed</h3>
+            </div>
+            <div class="live-feed" id="liveFeed">
+                <div style="text-align:center;color:var(--text-muted);padding:20px">
+                    Click "Start Scraping" to begin
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h3>Console Log</h3>
+            </div>
+            <div class="log-console" id="logConsole">
+                <div class="log-line log-info">[System] Waiting for user action...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let eventSource = null;
+    let scraping = false;
+
+    async function loadKeywords() {
+        const r = await fetch('/api/keywords');
+        const d = await r.json();
+        const list = document.getElementById('keywordList');
+        const box = document.getElementById('keywordSelector');
+        const kws = d.keywords || [];
+        if (!kws.length) { box.style.display = 'none'; return; }
+        box.style.display = 'block';
+        list.innerHTML = kws.map(k => `
+            <label class="keyword-chip ${k.priority ? 'kw-priority' : ''}">
+                <input type="checkbox" class="kw-check" value="${escapeHtml(k.keyword)}" checked>
+                <span>${escapeHtml(k.keyword)}</span>
+                ${k.priority ? '<span class="badge badge-accent" style="font-size:9px;margin-left:3px">P</span>' : ''}
+            </label>
+        `).join('');
+    }
+
+    function toggleAllKeywords(checked) {
+        document.querySelectorAll('.kw-check').forEach(cb => cb.checked = checked);
+    }
+
+    function getSelectedKeywords() {
+        const cbs = document.querySelectorAll('.kw-check:checked');
+        return Array.from(cbs).map(cb => cb.value);
+    }
+
+    async function loadAccounts() {
+        const r = await fetch('/api/accounts');
+        const d = await r.json();
+        const sel = document.getElementById('accountSelect');
+        sel.innerHTML = '<option value="">Default Account</option>';
+        (d.accounts || []).forEach(a => {
+            const opt = document.createElement('option');
+            opt.value = a.id;
+            opt.textContent = a.name + (a.is_default ? ' (Default)' : '') + ' — @' + a.username;
+            sel.appendChild(opt);
+        });
+    }
+
+    function connectStream() {
+        if (eventSource) eventSource.close();
+        eventSource = new EventSource('/api/scrape/stream');
+
+        eventSource.addEventListener('log', e => {
+            const data = JSON.parse(e.data);
+            addLog(data.msg, data.type || 'info');
+        });
+
+        eventSource.addEventListener('tweet', e => {
+            const t = JSON.parse(e.data);
+            addFeed(t.text, `@${t.user} · ${t.keyword}`, t.url);
+            const c = document.getElementById('counterNew');
+            c.textContent = parseInt(c.textContent) + 1;
+        });
+
+        eventSource.addEventListener('progress', e => {
+            const p = JSON.parse(e.data);
+            document.getElementById('counterKeyword').textContent = `${p.current}/${p.total}`;
+            document.getElementById('counterTotal').textContent = p.total_new || 0;
+            const pct = p.total > 0 ? (p.current / p.total * 100) : 0;
+            document.getElementById('progressFill').style.width = Math.min(pct, 100) + '%';
+        });
+
+        eventSource.addEventListener('done', e => {
+            const d = JSON.parse(e.data);
+            document.getElementById('statusDot').className = 'status-dot done';
+            document.getElementById('statusText').textContent = `Done! +${d.total_new} new tweets`;
+            addLog(`Scraping complete! +${d.total_new} new tweets`, 'success');
+            eventSource.close();
+            scraping = false;
+            document.getElementById('btnStart').disabled = false;
+            document.getElementById('btnStop').disabled = true;
+        });
+
+        eventSource.addEventListener('error', e => {
+            const d = JSON.parse(e.data);
+            addLog(`Error: ${d.msg}`, 'error');
+        });
+
+        eventSource.onerror = () => {
+            if (!scraping) return;
+            addLog('Connection lost. Refresh to reconnect.', 'error');
+            resetScraper();
+        };
+    }
+
+    function addLog(msg, type = 'info') {
+        const el = document.getElementById('logConsole');
+        const line = document.createElement('div');
+        line.className = 'log-line log-' + type;
+        const time = new Date().toLocaleTimeString();
+        line.textContent = `[${time}] ${msg}`;
+        el.appendChild(line);
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function addFeed(text, meta = '', url = '') {
+        const el = document.getElementById('liveFeed');
+        const empty = el.querySelector('[style*="text-align:center"]');
+        if (empty) empty.remove();
+
+        const item = document.createElement('div');
+        item.className = 'feed-item';
+        item.innerHTML = `
+        <div class="feed-icon">T</div>
+        <div class="feed-content">
+            <div class="feed-text">${text}</div>
+            <div class="feed-meta">
+                <span>${meta}</span>
+                ${url ? `<a href="${url}" target="_blank">Open</a>` : ''}
+            </div>
+        </div>
+    `;
+        el.insertBefore(item, el.firstChild);
+        while (el.children.length > 50) el.removeChild(el.lastChild);
+    }
+
+    async function startScrape() {
+        if (scraping) return;
+        scraping = true;
+
+        document.getElementById('btnStart').disabled = true;
+        document.getElementById('btnStop').disabled = false;
+        document.getElementById('statusDot').className = 'status-dot running';
+        document.getElementById('statusText').textContent = 'Scraping...';
+        document.getElementById('progressSection').style.display = 'block';
+
+        document.getElementById('liveFeed').innerHTML = '';
+        document.getElementById('logConsole').innerHTML = '';
+        document.getElementById('progressFill').style.width = '0%';
+
+        try {
+            const accountId = document.getElementById('accountSelect').value;
+            const keywords = getSelectedKeywords();
+            const r = await fetch('/api/scrape/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ account_id: accountId || null, keywords })
+            });
+            const d = await r.json();
+            if (d.status !== 'started') {
+                addLog('Failed to start: ' + (d.msg || 'unknown error'), 'error');
+                resetScraper();
+                return;
+            }
+            addLog('Scraper started', 'success');
+            connectStream();
+        } catch (err) {
+            addLog('Failed to start: ' + err.message, 'error');
+            resetScraper();
+        }
+    }
+
+    function stopScrape() {
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+        fetch('/api/scrape/stop', { method: 'POST' }).catch(() => { });
+        addLog('Scraping stopped by user', 'error');
+        resetScraper();
+    }
+
+    function resetScraper() {
+        scraping = false;
+        document.getElementById('btnStart').disabled = false;
+        document.getElementById('btnStop').disabled = true;
+        document.getElementById('statusDot').className = 'status-dot idle';
+        document.getElementById('statusText').textContent = 'Idle';
+        if (eventSource) { eventSource.close(); eventSource = null; }
+    }
+
+    loadAccounts();
+    loadKeywords();
+
+    // Auto-reconnect if scraping is already active
+    async function autoReconnect() {
+        const r = await fetch('/api/scrape/status');
+        const d = await r.json();
+        if (d.running && d.status !== 'done') {
+            scraping = true;
+            document.getElementById('btnStart').disabled = true;
+            document.getElementById('btnStop').disabled = false;
+            document.getElementById('statusDot').className = 'status-dot running';
+            document.getElementById('statusText').textContent = 'Scraping...';
+            document.getElementById('progressSection').style.display = 'block';
+            document.getElementById('counterKeyword').textContent = `${d.current}/${d.total}`;
+            document.getElementById('counterTotal').textContent = d.total_new || 0;
+            const pct = d.total > 0 ? (d.current / d.total * 100) : 0;
+            document.getElementById('progressFill').style.width = Math.min(pct, 100) + '%';
+            document.getElementById('logConsole').innerHTML = '';
+            addLog('Reconnected to active scrape session', 'success');
+            connectStream();
+        }
+    }
+    autoReconnect();
+</script>
+{% endblock %}

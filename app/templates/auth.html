@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Register' if mode == 'register' else 'Login' }} — X Scraper</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script>
+        const t = localStorage.getItem('cf-theme') ||
+            (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', t);
+    </script>
+</head>
+
+<body>
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="auth-logo">X Scraper</div>
+            <div class="auth-sub">X/Tweet Analyzer</div>
+
+            {% if mode == 'register' %}
+            <h2 class="auth-title">Create Account</h2>
+            <div class="auth-form">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input class="input" id="regUser" placeholder="Enter username" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input class="input" type="password" id="regPass" placeholder="Min 4 characters"
+                        autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input class="input" type="password" id="regConfirm" placeholder="Confirm password"
+                        autocomplete="new-password">
+                </div>
+                <div class="auth-msg" id="regMsg"></div>
+                <button class="btn btn-primary" style="width:100%;justify-content:center"
+                    onclick="doRegister()">Register</button>
+                <p class="auth-link">Already have an account? <a href="/login">Login</a></p>
+            </div>
+            {% else %}
+            <h2 class="auth-title">Login</h2>
+            <div class="auth-form">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input class="input" id="loginUser" placeholder="Enter username" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input class="input" type="password" id="loginPass" placeholder="Enter password"
+                        autocomplete="current-password">
+                </div>
+                <div class="auth-msg" id="loginMsg"></div>
+                <button class="btn btn-primary" style="width:100%;justify-content:center"
+                    onclick="doLogin()">Login</button>
+                <p class="auth-link">Don't have an account? <a href="/register">Register</a></p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function setMsg(id, text, err) {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            el.style.color = err ? 'var(--danger)' : 'var(--success)';
+        }
+
+        {% if mode == 'register' %}
+        async function doRegister() {
+            const user = document.getElementById('regUser').value.trim();
+            const pass = document.getElementById('regPass').value;
+            const confirm = document.getElementById('regConfirm').value;
+            if (!user || !pass) { setMsg('regMsg', 'Fill all fields', true); return; }
+            if (pass.length < 4) { setMsg('regMsg', 'Password too short', true); return; }
+            if (pass !== confirm) { setMsg('regMsg', 'Passwords do not match', true); return; }
+            setMsg('regMsg', 'Registering...', false);
+            const r = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, password: pass }),
+            });
+            const d = await r.json();
+            if (d.status === 'ok') {
+                sessionStorage.setItem('cf_session', d.session_id);
+                sessionStorage.setItem('cf_user', d.username);
+                document.cookie = 'cf_session=' + d.session_id + '; path=/';
+                window.location.href = '/';
+            } else {
+                setMsg('regMsg', d.msg || 'Registration failed', true);
+            }
+        }
+        {% else %}
+        async function doLogin() {
+            const user = document.getElementById('loginUser').value.trim();
+            const pass = document.getElementById('loginPass').value;
+            if (!user || !pass) { setMsg('loginMsg', 'Fill all fields', true); return; }
+            setMsg('loginMsg', 'Logging in...', false);
+            const r = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, password: pass }),
+            });
+            const d = await r.json();
+            if (d.status === 'ok') {
+                sessionStorage.setItem('cf_session', d.session_id);
+                sessionStorage.setItem('cf_user', d.username);
+                document.cookie = 'cf_session=' + d.session_id + '; path=/';
+                window.location.href = '/';
+            } else {
+                setMsg('loginMsg', d.msg || 'Login failed', true);
+            }
+        }
+
+        document.getElementById('loginPass').addEventListener('keydown', e => {
+            if (e.key === 'Enter') doLogin();
+        });
+        {% endif %}
+    </script>
+
+    <style>
+        .auth-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            background: var(--bg);
+        }
+
+        .auth-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+        }
+
+        .auth-logo {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--accent);
+            letter-spacing: -1px;
+        }
+
+        .auth-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+        }
+
+        .auth-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .auth-form {
+            text-align: left;
+        }
+
+        .auth-form .form-group {
+            margin-bottom: 14px;
+        }
+
+        .auth-msg {
+            font-size: 13px;
+            margin-bottom: 12px;
+            text-align: center;
+            min-height: 20px;
+        }
+
+        .auth-link {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 16px;
+        }
+
+        .auth-link a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .auth-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</body>
+
+</html>
