@@ -1,6 +1,6 @@
 # twit-scrap
 
-Scrape tweets from X (Twitter) buat nyari merchandise event kayak Comifuro. FastAPI web app, pake Playwright buat scraping langsung dari x.com/search.
+Scrape tweets from X (Twitter) buat nyari data yg kalian pengen. FastAPI web app, pake Playwright buat scraping langsung dari x.com/search.
 
 ## Cara pake
 
