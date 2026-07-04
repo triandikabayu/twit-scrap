@@ -14,9 +14,8 @@ from wordcloud import WordCloud
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from app.data.characters import (
-    ISO_PATTERNS, KNOWN_CHARACTERS, NOISE_WORDS, URGENCY_WORDS,
-    CHARACTER_ALIASES, SERIES_HINT, SERIES_KEYWORDS,
-    load_data, find_iso_tweets, classify_urgency, analyze_character_urgency,
+    ISO_PATTERNS, NOISE_WORDS, URGENCY_WORDS,
+    find_iso_tweets, classify_urgency, analyze_character_urgency,
     extract_characters
 )
 

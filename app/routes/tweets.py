@@ -7,7 +7,6 @@ from fastapi.responses import JSONResponse, Response
 
 from app.helpers import _render, _session_required, _get_sid, PROJ
 from app.models import db
-from app.data import characters as ac
 
 router = APIRouter()
 
