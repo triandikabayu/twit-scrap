@@ -85,7 +85,7 @@ Navigasi ke **Keywords**:
 
 | Kolom | Deskripsi |
 |-------|-----------|
-| **Priority keyword** | Query utama (misal `#wtb cf22`, `#wtb comifuro`, `cari cf`). Dijalankan standalone **dan** dikombinasikan dengan setiap keyword non-priority. |
+| **Priority keyword** | Query utama (misal `cf22`, `comifuro`, `nama event`). Dijalankan standalone **dan** dikombinasikan dengan setiap keyword non-priority. |
 | **Non-priority keyword** | Nama karakter atau barang (misal `Hoshino Ruby`, `Miyabi`, `figure`, `acrylic stand`). Juga dijalankan sebagai query standalone. |
 | **Fandom Search** | Ketik nama fandom → saran karakter dari database lokal. Karakter terpilih jadi keyword non-priority. |
 

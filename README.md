@@ -85,7 +85,7 @@ Navigate to **Keywords**:
 
 | Field | Description |
 |-------|-------------|
-| **Priority keyword** | Main search query (e.g., `#wtb cf22`, `#wtb comifuro`, `cari cf`). These run standalone **and** are combined with every non-priority keyword. |
+| **Priority keyword** | Main search query (e.g., `cf22`, `comifuro`, `event name`). These run standalone **and** are combined with every non-priority keyword. |
 | **Non-priority keyword** | Character or item names (e.g., `Hoshino Ruby`, `Miyabi`, `figure`, `acrylic stand`). These run as standalone queries too. |
 | **Fandom Search** | Type a fandom name → auto-suggests characters from the local database. Selected characters become non-priority keywords. |
 

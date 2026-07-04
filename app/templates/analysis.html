@@ -5,7 +5,7 @@
 <div class="page">
     <div class="page-header">
         <h1>Character Analysis</h1>
-        <p>Detailed breakdown of characters found in ISO tweets</p>
+        <p>Character frequency and urgency analysis</p>
     </div>
 
     <div class="chart-grid">
@@ -19,7 +19,7 @@
                         <tr>
                             <th>#</th>
                             <th>Character</th>
-                            <th>Total ISO</th>
+                            <th>Total</th>
                             <th>Desperate</th>
                             <th>Urgency Score</th>
                             <th>Action</th>
@@ -128,7 +128,7 @@
             data: {
                 labels: data.map(d => d[0]),
                 datasets: [{
-                    label: 'ISO Tweets',
+                    label: 'Tweets',
                     data: data.map(d => d[1].total),
                     backgroundColor: 'rgba(108, 99, 255, 0.6)',
                     borderColor: '#6C63FF',
