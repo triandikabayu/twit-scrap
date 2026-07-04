@@ -11,3 +11,4 @@ data/*.csv
 data/*.json
 .DS_Store
 *.zip
+playwright_profile/
