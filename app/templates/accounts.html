@@ -134,7 +134,7 @@
             const r = await fetch('/api/accounts/' + id + '/cookies' + (force ? '?force=1' : ''), { method: 'POST' });
             const d = await r.json();
             if (d.status === 'ok') {
-                alert('Cookies berhasil digenerate! Login di browser yang terbuka, lalu tutup browser.');
+                alert('Cookies berhasil disimpan!');
             } else if (d.status === 'remote') {
                 showRemoteDialog(d, id);
             } else {

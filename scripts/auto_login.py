@@ -60,14 +60,9 @@ def main():
     parser.add_argument('--headless', action='store_true', help='(ignored)')
     args = parser.parse_args()
 
-    # Cek apakah udah login sebelumnya
-    existing = get_x_cookies()
-    if has_auth(existing):
-        save(args.output, existing)
-        return
-
+    # Always open Chrome so user can log in as the correct account
     open_chrome(LOGIN_URL)
-    print('MSG:Browser opened. Log in to X.com manually in the Chrome window that appeared.')
+    print('MSG:Chrome opened to X.com login. Log in manually — cookies will be saved automatically.')
 
     start = time.time()
     while time.time() - start < TIMEOUT:
