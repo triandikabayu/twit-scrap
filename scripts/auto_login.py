@@ -23,7 +23,7 @@ def get_x_cookies():
         'value': c.value,
         'domain': c.domain,
         'path': c.path,
-        'secure': c.secure,
+        'secure': bool(c.secure),
         'httpOnly': True,
         'sameSite': 'Lax',
     } for c in cj]

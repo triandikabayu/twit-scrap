@@ -264,6 +264,8 @@ async def main():
                 cookie['sameSite'] = 'Lax'
             elif isinstance(ss, str) and ss.lower() == 'strict':
                 cookie['sameSite'] = 'Strict'
+            if 'secure' in cookie:
+                cookie['secure'] = bool(cookie['secure'])
             cookies.append(cookie)
         await context.add_cookies(cookies)
         print(f">> Cookies loaded ({len(cookies)} entries)")
