@@ -92,7 +92,8 @@ body {
 
 /* ====== TOP BAR ====== */
 .topbar {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
     padding: 12px 20px;
     border-bottom: 1px solid var(--border);
@@ -103,44 +104,20 @@ body {
 }
 
 .topbar-left {
-    margin-right: 12px;
+    justify-self: start;
 }
 
 .topbar-right {
-    margin-left: auto;
+    justify-self: end;
 }
 
 .topbar-brand {
+    justify-self: center;
     font-size: 18px;
     font-weight: 700;
     color: var(--accent);
     text-decoration: none;
     letter-spacing: -0.5px;
-    margin-right: 24px;
-    white-space: nowrap;
-}
-
-.topbar-nav {
-    display: flex;
-    gap: 4px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-.topbar-nav-item {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    text-decoration: none;
-    padding: 6px 12px;
-    border-radius: 8px;
-    white-space: nowrap;
-    transition: var(--transition);
-}
-
-.topbar-nav-item:hover {
-    color: var(--accent);
-    background: rgba(var(--accent-rgb, 249, 115, 22), 0.08);
 }
 
 /* ====== BURGER ====== */
@@ -1191,7 +1168,7 @@ tfoot td {
     .footer-stats { gap: 20px; }
     .topbar { padding: 10px 12px; }
     .topbar-brand { font-size: 15px; }
-    .topbar-nav { display: none; }
+
     .burger-btn { width: 32px; height: 32px; }
     .burger-btn span { width: 15px; }
     .scraper-counters { gap: 12px; }
