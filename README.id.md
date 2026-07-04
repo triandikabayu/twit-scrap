@@ -202,6 +202,17 @@ Analisis karakter & grafik
 - `.gitignore` mencakup `*.db`, `*.csv`, `*.json`, dan `cookies.json` — tidak ada rahasia di version control.
 - Data setiap pengguna terisolasi penuh berdasarkan session ID.
 
+## Privasi & Penyimpanan Data
+
+> Semua berjalan lokal di mesin Anda. Tidak ada data yang dikirim ke server eksternal, cloud, atau pihak ketiga mana pun.
+>
+> - **Tweet** → disimpan di database SQLite lokal (`data/cf_scraper.db`)
+> - **Cookies** → disimpan sebagai file JSON lokal (`cookies.json`, `cookies_N.json`)
+> - **Kredensial** → dibaca dari environment variable, tidak pernah dikirim
+> - **Grafik** → dihasilkan sebagai file PNG lokal (`output/`)
+>
+> Semua file data (`*.db`, `*.csv`, `*.json`, `cookies.json`, `.env`) sudah tercakup di `.gitignore` — tidak ada yang bocor ke version control. Untuk menghapus semua data, tinggal delete file-file tersebut dan generate ulang.
+
 ## Tech Stack
 
 | Layer | Teknologi |

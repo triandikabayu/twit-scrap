@@ -202,6 +202,17 @@ Character analysis & charts
 - `.gitignore` covers `*.db`, `*.csv`, `*.json`, and `cookies.json` — no secrets in version control.
 - Each user's data is fully isolated by session ID.
 
+## Privacy & Data Storage
+
+> Everything runs locally on your machine. No data is sent to any external server, cloud, or third party.
+>
+> - **Tweets** → stored in local SQLite database (`data/cf_scraper.db`)
+> - **Cookies** → saved as local JSON files (`cookies.json`, `cookies_N.json`)
+> - **Credentials** → read from your environment variables, never transmitted
+> - **Charts** → generated as local PNG files (`output/`)
+>
+> All data files (`*.db`, `*.csv`, `*.json`, `cookies.json`, `.env`) are covered by `.gitignore` — nothing leaks to version control. To wipe everything, delete these files and regenerate.
+
 ## Tech Stack
 
 | Layer | Technology |
