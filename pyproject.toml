@@ -1,7 +1,7 @@
 [project]
-name = "cf-twit-scrap"
+name = "twit-scrap"
 version = "0.1.0"
-description = "Twitter scraper for Comifuro event merchandise tracking"
+description = "Twitter scraper for searching and gathering data"
 requires-python = ">=3.10"
 dependencies = [
     "twikit==2.3.3",
