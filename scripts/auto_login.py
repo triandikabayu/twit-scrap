@@ -7,7 +7,12 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from browser_cookie3 import chrome as chrome_cookies
+try:
+    from browser_cookie3 import chrome as chrome_cookies
+except ImportError:
+    print('STATUS:error')
+    print('MSG:browser_cookie3 tidak terinstall. Jalankan: pip install browser-cookie3')
+    sys.exit(1)
 
 LOGIN_URL = 'https://x.com/i/jf/onboarding/web?mode=login'
 HOME_URL = 'https://x.com/home'

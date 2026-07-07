@@ -6,7 +6,11 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from browser_cookie3 import chrome as chrome_cookies
+try:
+    from browser_cookie3 import chrome as chrome_cookies
+except ImportError:
+    print("browser_cookie3 tidak terinstall. Jalankan: pip install browser-cookie3")
+    sys.exit(1)
 
 COOKIES_FILE = 'cookies.json'
 if '--output' in sys.argv:

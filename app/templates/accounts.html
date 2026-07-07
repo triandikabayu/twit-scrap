@@ -137,8 +137,11 @@
                 alert('Cookies berhasil disimpan!');
             } else if (d.status === 'remote') {
                 showRemoteDialog(d, id);
+            } else if (d.status === 'challenge') {
+                alert('2FA / Challenge: ' + (d.msg || 'Login manual diperlukan'));
+                if (d.command) showRemoteDialog(d, id);
             } else {
-                alert('Error: ' + (d.msg || 'Unknown error'));
+                alert('Error: ' + (d.msg || 'Gagal mengambil cookies. Coba manual: python scripts/get_cookies.py'));
             }
         } catch(e) {
             alert('Error: ' + e.message);
