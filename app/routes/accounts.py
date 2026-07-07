@@ -1,6 +1,9 @@
 import asyncio
 import concurrent.futures
 import json
+import os
+import shutil
+import sys
 import time as time_module
 
 from fastapi import APIRouter, Request, Query
@@ -18,12 +21,42 @@ LOGIN_URL = 'https://x.com/i/jf/onboarding/web?mode=login'
 _thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
 
+def _find_chrome() -> str | None:
+    if sys.platform == 'darwin':
+        path = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+        return path if os.path.exists(path) else None
+    elif sys.platform == 'win32':
+        candidates = [
+            os.path.expandvars(r'%ProgramFiles%\Google\Chrome\Application\chrome.exe'),
+            os.path.expandvars(r'%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe'),
+            os.path.expandvars(r'%LocalAppData%\Google\Chrome\Application\chrome.exe'),
+        ]
+        for p in candidates:
+            if p and os.path.exists(p):
+                return p
+        return None
+    else:
+        candidates = ['google-chrome', 'chromium-browser', 'chromium',
+                      '/usr/bin/google-chrome', '/usr/bin/chromium-browser']
+        for bin in candidates:
+            if os.path.exists(bin):
+                return bin
+            if shutil.which(bin):
+                return bin
+        return None
+
+
 def _capture_cookies(output_path: str) -> str | None:
     """Run Playwright synchronously in a worker thread (bypasses Windows event-loop issues)."""
     from playwright.sync_api import sync_playwright
 
+    chrome_path = _find_chrome()
+    launch_kwargs = {'headless': False}
+    if chrome_path:
+        launch_kwargs['executable_path'] = chrome_path
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, channel='chrome')
+        browser = p.chromium.launch(**launch_kwargs)
         page = browser.new_page()
         page.goto(LOGIN_URL, wait_until='networkidle')
 

@@ -44,6 +44,29 @@ def save_cookies(cookies):
         print(">> Peringatan: tidak ada auth_token. Pastikan sudah login ke X.com.")
 
 
+def _find_chrome():
+    if sys.platform == 'darwin':
+        path = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+        return path if os.path.exists(path) else None
+    elif sys.platform == 'win32':
+        candidates = [
+            os.path.expandvars(r'%ProgramFiles%\Google\Chrome\Application\chrome.exe'),
+            os.path.expandvars(r'%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe'),
+            os.path.expandvars(r'%LocalAppData%\Google\Chrome\Application\chrome.exe'),
+        ]
+        for p in candidates:
+            if p and os.path.exists(p):
+                return p
+        return None
+    else:
+        import shutil
+        for bin in ('google-chrome', 'chromium-browser', 'chromium',
+                     '/usr/bin/google-chrome', '/usr/bin/chromium-browser'):
+            if os.path.exists(bin) or shutil.which(bin):
+                return bin
+        return None
+
+
 def main():
     from playwright.sync_api import sync_playwright
 
@@ -55,8 +78,13 @@ def main():
     print("  2. Kembali ke terminal ini, tekan ENTER")
     print("\n  Browser akan dibukain otomatis...\n")
 
+    chrome_path = _find_chrome()
+    launch_kwargs = {'headless': False}
+    if chrome_path:
+        launch_kwargs['executable_path'] = chrome_path
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, channel='chrome')
+        browser = p.chromium.launch(**launch_kwargs)
         page = browser.new_page()
         page.goto('https://x.com/home')
         page.wait_for_load_state('networkidle')
