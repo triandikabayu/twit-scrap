@@ -34,11 +34,32 @@ def has_auth(cookies):
 
 
 def open_chrome(url):
-    chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-    if os.path.exists(chrome):
-        subprocess.Popen([chrome, url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    else:
+    """Buka Chrome — cross platform (macOS, Windows, Linux)."""
+    if sys.platform == 'darwin':
+        path = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+        if os.path.exists(path):
+            subprocess.Popen([path, url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return
         subprocess.Popen(['open', '-a', 'Google Chrome', url])
+    elif sys.platform == 'win32':
+        candidates = [
+            os.path.expandvars(r'%ProgramFiles%\Google\Chrome\Application\chrome.exe'),
+            os.path.expandvars(r'%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe'),
+            os.path.expandvars(r'%LocalAppData%\Google\Chrome\Application\chrome.exe'),
+        ]
+        for path in candidates:
+            if path and os.path.exists(path):
+                subprocess.Popen([path, url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return
+        subprocess.Popen(['start', 'chrome', url], shell=True)
+    else:
+        candidates = ['google-chrome', 'chromium-browser', 'chromium']
+        for bin in candidates:
+            try:
+                subprocess.Popen([bin, url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return
+            except FileNotFoundError:
+                continue
 
 
 def save(output_path, cookies):
