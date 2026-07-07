@@ -1,5 +1,7 @@
 import asyncio
+import concurrent.futures
 import json
+import time as time_module
 
 from fastapi import APIRouter, Request, Query
 
@@ -12,6 +14,32 @@ AUTH_COOKIE_NAMES = {'auth_token', 'ct0', 'twid'}
 POLL_INTERVAL = 3
 TIMEOUT = 120
 LOGIN_URL = 'https://x.com/i/jf/onboarding/web?mode=login'
+
+_thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+
+def _capture_cookies(output_path: str) -> str | None:
+    """Run Playwright synchronously in a worker thread (bypasses Windows event-loop issues)."""
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False, channel='chrome')
+        page = browser.new_page()
+        page.goto(LOGIN_URL, wait_until='networkidle')
+
+        start = time_module.time()
+        while time_module.time() - start < TIMEOUT:
+            time_module.sleep(POLL_INTERVAL)
+            cookies = page.context.cookies()
+            has_auth = any(c['name'] in AUTH_COOKIE_NAMES for c in cookies)
+            if has_auth:
+                with open(output_path, 'w') as f:
+                    json.dump(cookies, f, indent=2)
+                browser.close()
+                return output_path
+
+        browser.close()
+        return None
 
 
 @router.get('/api/accounts')
@@ -77,27 +105,14 @@ async def api_accounts_gen_cookies(request: Request, account_id: int, force: int
         }
 
     try:
-        from playwright.async_api import async_playwright
+        output_path = str(PROJ / cookies_file)
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(_thread_pool, _capture_cookies, output_path)
 
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False, channel='chrome')
-            page = await browser.new_page()
-            await page.goto(LOGIN_URL, wait_until='networkidle')
-
-            start = asyncio.get_event_loop().time()
-            while asyncio.get_event_loop().time() - start < TIMEOUT:
-                await asyncio.sleep(POLL_INTERVAL)
-                cookies = await page.context.cookies()
-                has_auth = any(c['name'] in AUTH_COOKIE_NAMES for c in cookies)
-                if has_auth:
-                    output_path = str(PROJ / cookies_file)
-                    with open(output_path, 'w') as f:
-                        json.dump(cookies, f, indent=2)
-                    await browser.close()
-                    db.update_account_cookies(account_id, cookies_file)
-                    return {'status': 'ok', 'cookies_file': cookies_file}
-
-            await browser.close()
+        if result:
+            db.update_account_cookies(account_id, cookies_file)
+            return {'status': 'ok', 'cookies_file': cookies_file}
+        else:
             return {
                 'status': 'error',
                 'msg': f'Timeout — no auth cookies found after {TIMEOUT}s. Pastikan sudah login ke X.com.',
