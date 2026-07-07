@@ -1,14 +1,17 @@
 import asyncio
-import sys
-from pathlib import Path
+import json
 
 from fastapi import APIRouter, Request, Query
-from fastapi.responses import JSONResponse
 
-from app.helpers import _render, _session_required, _get_sid, PROJ
+from app.helpers import _session_required, PROJ
 from app.models import db
 
 router = APIRouter()
+
+AUTH_COOKIE_NAMES = {'auth_token', 'ct0', 'twid'}
+POLL_INTERVAL = 3
+TIMEOUT = 120
+LOGIN_URL = 'https://x.com/i/jf/onboarding/web?mode=login'
 
 
 @router.get('/api/accounts')
@@ -74,41 +77,35 @@ async def api_accounts_gen_cookies(request: Request, account_id: int, force: int
         }
 
     try:
-        proc = await asyncio.create_subprocess_exec(
-            sys.executable, str(PROJ / 'scripts' / 'auto_login.py'),
-            '--username', username,
-            '--password', password,
-            '--output', str(PROJ / cookies_file),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-            cwd=str(PROJ),
-        )
-        stdout_bytes, _ = await asyncio.wait_for(proc.communicate(), timeout=120)
-        stdout = stdout_bytes.decode('utf-8', errors='replace')
-    except asyncio.TimeoutError:
-        if proc:
-            proc.terminate()
-        return {'status': 'error', 'msg': 'Login timed out after 120s'}
-    except Exception as e:
-        return {'status': 'error', 'msg': str(e) or 'Gagal menjalankan script'}
+        from playwright.async_api import async_playwright
 
-    if proc.returncode == 0 and 'STATUS:ok' in stdout:
-        db.update_account_cookies(account_id, cookies_file)
-        return {'status': 'ok', 'cookies_file': cookies_file}
-    elif proc.returncode == 2 or 'STATUS:challenge' in stdout:
-        return {
-            'status': 'challenge',
-            'msg': '2FA atau challenge terdeteksi. Gunakan metode manual.',
-            'command': f'python scripts/get_cookies.py --output {cookies_file}',
-        }
-    else:
-        msg = None
-        for line in stdout.splitlines():
-            if line.startswith('MSG:'):
-                msg = line[4:]
-                break
-        if not msg:
-            msg = 'Login gagal'
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=False, channel='chrome')
+            page = await browser.new_page()
+            await page.goto(LOGIN_URL, wait_until='networkidle')
+
+            start = asyncio.get_event_loop().time()
+            while asyncio.get_event_loop().time() - start < TIMEOUT:
+                await asyncio.sleep(POLL_INTERVAL)
+                cookies = await page.context.cookies()
+                has_auth = any(c['name'] in AUTH_COOKIE_NAMES for c in cookies)
+                if has_auth:
+                    output_path = str(PROJ / cookies_file)
+                    with open(output_path, 'w') as f:
+                        json.dump(cookies, f, indent=2)
+                    await browser.close()
+                    db.update_account_cookies(account_id, cookies_file)
+                    return {'status': 'ok', 'cookies_file': cookies_file}
+
+            await browser.close()
+            return {
+                'status': 'error',
+                'msg': f'Timeout — no auth cookies found after {TIMEOUT}s. Pastikan sudah login ke X.com.',
+                'command': f'python scripts/get_cookies.py --output {cookies_file}',
+            }
+
+    except Exception as e:
+        msg = str(e) or 'Unknown error (no message)'
         return {
             'status': 'error',
             'msg': msg,
