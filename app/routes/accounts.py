@@ -90,7 +90,7 @@ async def api_accounts_gen_cookies(request: Request, account_id: int, force: int
             proc.terminate()
         return {'status': 'error', 'msg': 'Login timed out after 120s'}
     except Exception as e:
-        return {'status': 'error', 'msg': str(e)}
+        return {'status': 'error', 'msg': str(e) or 'Gagal menjalankan script'}
 
     if proc.returncode == 0 and 'STATUS:ok' in stdout:
         db.update_account_cookies(account_id, cookies_file)
@@ -102,11 +102,13 @@ async def api_accounts_gen_cookies(request: Request, account_id: int, force: int
             'command': f'python scripts/get_cookies.py --output {cookies_file}',
         }
     else:
-        msg = 'Login gagal'
+        msg = None
         for line in stdout.splitlines():
             if line.startswith('MSG:'):
                 msg = line[4:]
                 break
+        if not msg:
+            msg = 'Login gagal'
         return {
             'status': 'error',
             'msg': msg,

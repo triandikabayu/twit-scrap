@@ -1,70 +1,32 @@
 import argparse
 import json
 import os
-import subprocess
 import sys
 import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-try:
-    from browser_cookie3 import chrome as chrome_cookies
-except ImportError:
-    print('STATUS:error')
-    print('MSG:browser_cookie3 tidak terinstall. Jalankan: pip install browser-cookie3')
-    sys.exit(1)
-
 LOGIN_URL = 'https://x.com/i/jf/onboarding/web?mode=login'
-HOME_URL = 'https://x.com/home'
 AUTH_COOKIE_NAMES = {'auth_token', 'ct0', 'twid'}
 POLL_INTERVAL = 3
 TIMEOUT = 120
 
 
-def get_x_cookies():
-    cj = chrome_cookies(domain_name='x.com')
+def get_x_cookies(page):
+    cookies = page.context.cookies()
     return [{
-        'name': c.name,
-        'value': c.value,
-        'domain': c.domain,
-        'path': c.path,
-        'secure': bool(c.secure),
-        'httpOnly': True,
-        'sameSite': 'Lax',
-    } for c in cj]
+        'name': c['name'],
+        'value': c['value'],
+        'domain': c.get('domain', '.x.com'),
+        'path': c.get('path', '/'),
+        'secure': c.get('secure', True),
+        'httpOnly': c.get('httpOnly', True),
+        'sameSite': c.get('sameSite', 'Lax'),
+    } for c in cookies]
 
 
 def has_auth(cookies):
     return any(c['name'] in AUTH_COOKIE_NAMES for c in cookies)
-
-
-def open_chrome(url):
-    """Buka Chrome — cross platform (macOS, Windows, Linux)."""
-    if sys.platform == 'darwin':
-        path = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-        if os.path.exists(path):
-            subprocess.Popen([path, url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return
-        subprocess.Popen(['open', '-a', 'Google Chrome', url])
-    elif sys.platform == 'win32':
-        candidates = [
-            os.path.expandvars(r'%ProgramFiles%\Google\Chrome\Application\chrome.exe'),
-            os.path.expandvars(r'%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe'),
-            os.path.expandvars(r'%LocalAppData%\Google\Chrome\Application\chrome.exe'),
-        ]
-        for path in candidates:
-            if path and os.path.exists(path):
-                subprocess.Popen([path, url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                return
-        subprocess.Popen(['start', 'chrome', url], shell=True)
-    else:
-        candidates = ['google-chrome', 'chromium-browser', 'chromium']
-        for bin in candidates:
-            try:
-                subprocess.Popen([bin, url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                return
-            except FileNotFoundError:
-                continue
 
 
 def save(output_path, cookies):
@@ -78,37 +40,42 @@ def save(output_path, cookies):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='X.com cookie capture via real Chrome')
+    parser = argparse.ArgumentParser(description='X.com cookie capture via Playwright')
     parser.add_argument('--output', required=True, help='Path to save cookie JSON file')
-    parser.add_argument('--username', help='(ignored — login manually in Chrome)')
-    parser.add_argument('--password', help='(ignored — login manually in Chrome)')
-    parser.add_argument('--email', help='(ignored — login manually in Chrome)')
+    parser.add_argument('--username', help='(ignored — login manually)')
+    parser.add_argument('--password', help='(ignored — login manually)')
+    parser.add_argument('--email', help='(ignored — login manually)')
     parser.add_argument('--headless', action='store_true', help='(ignored)')
     args = parser.parse_args()
 
-    # Always open Chrome so user can log in as the correct account
-    open_chrome(LOGIN_URL)
-    print('MSG:Chrome opened to X.com login. Log in manually — cookies will be saved automatically.')
+    from playwright.sync_api import sync_playwright
 
-    start = time.time()
-    while time.time() - start < TIMEOUT:
-        time.sleep(POLL_INTERVAL)
-        cookies = get_x_cookies()
-        if has_auth(cookies):
-            save(args.output, cookies)
-            return
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False, channel='chrome')
+        page = browser.new_page()
+        page.goto(LOGIN_URL)
+        page.wait_for_load_state('networkidle')
 
-    # Fallback: save whatever we got (guest cookies)
-    cookies = get_x_cookies()
-    if cookies:
-        with open(args.output, 'w') as f:
-            json.dump(cookies, f, indent=2)
+        print('MSG:Chrome opened to X.com login. Log in manually — cookies will be saved automatically.')
+
+        start = time.time()
+        while time.time() - start < TIMEOUT:
+            time.sleep(POLL_INTERVAL)
+            cookies = get_x_cookies(page)
+            if has_auth(cookies):
+                browser.close()
+                save(args.output, cookies)
+                return
+
+        browser.close()
         print('STATUS:error')
-        print(f'MSG:Timeout — no auth cookies found after {TIMEOUT}s. Guest-only cookies saved.')
-    else:
-        print('STATUS:error')
-        print('MSG:No cookies could be retrieved from Chrome.')
+        print(f'MSG:Timeout — no auth cookies found after {TIMEOUT}s. Pastikan sudah login ke X.com.')
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        print('STATUS:error')
+        print(f'MSG:Error: {e}')
+        sys.exit(1)
