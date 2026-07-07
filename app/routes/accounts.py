@@ -2,7 +2,6 @@ import asyncio
 import concurrent.futures
 import json
 import os
-import shutil
 import sys
 import time as time_module
 
@@ -13,6 +12,8 @@ from app.models import db
 
 router = APIRouter()
 
+# ponytail: standalone script pair in scripts/ duplicates _find_chrome.
+# Acceptable — each script must work without importing app.
 AUTH_COOKIE_NAMES = {'auth_token', 'ct0', 'twid'}
 POLL_INTERVAL = 3
 TIMEOUT = 120
@@ -35,15 +36,11 @@ def _find_chrome() -> str | None:
             if p and os.path.exists(p):
                 return p
         return None
-    else:
-        candidates = ['google-chrome', 'chromium-browser', 'chromium',
-                      '/usr/bin/google-chrome', '/usr/bin/chromium-browser']
-        for bin in candidates:
-            if os.path.exists(bin):
-                return bin
-            if shutil.which(bin):
-                return bin
-        return None
+    # ponytail: Linux — explicit paths only. If not found, bundled Chromium is fine.
+    for bin in ('/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/snap/bin/chromium'):
+        if os.path.exists(bin):
+            return bin
+    return None
 
 
 def _capture_cookies(output_path: str) -> str | None:

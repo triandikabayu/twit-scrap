@@ -1,0 +1,165 @@
+- generic [ref=e2]:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - dialog:
+                - group [ref=e3]:
+                  - dialog [ref=e5]:
+                    - generic [ref=e24]:
+                      - generic [ref=e25]:
+                        - button [ref=e28] [cursor=pointer]:
+                          - img [ref=e31]
+                        - generic [ref=e33]:
+                          - img [ref=e38]
+                          - generic [ref=e43]:
+                            - generic [ref=e44]:
+                              - paragraph [ref=e46]: See what's happening
+                              - paragraph [ref=e48]: "Select an option below:"
+                            - generic [ref=e50]:
+                              - generic [ref=e51]:
+                                - button "Continue with phone" [ref=e52] [cursor=pointer]:
+                                  - generic [ref=e54]:
+                                    - img [ref=e56]
+                                    - paragraph [ref=e59]: Continue with phone
+                                - iframe [ref=e63]:
+                                  - button "Continue with Google. Opens in new tab" [ref=f6e3] [cursor=pointer]:
+                                    - generic [ref=f6e5]:
+                                      - img [ref=f6e7]
+                                      - generic [ref=f6e14]: Continue with Google
+                                - button "Continue with Apple" [ref=e64] [cursor=pointer]:
+                                  - generic [ref=e66]:
+                                    - img [ref=e68]
+                                    - paragraph [ref=e71]: Continue with Apple
+                              - paragraph [ref=e75]: or
+                              - generic [ref=e78]:
+                                - generic: Email or username
+                                - textbox "Email or username Email or username" [active] [ref=e79]
+                                - textbox
+                      - generic [ref=e81]:
+                        - paragraph [ref=e85]: Continue
+                        - paragraph [ref=e89]:
+                          - text: By continuing, you agree to our
+                          - link "Terms of Service" [ref=e90] [cursor=pointer]:
+                            - /url: https://x.com/tos
+                          - text: ","
+                          - link "Privacy Policy" [ref=e91] [cursor=pointer]:
+                            - /url: https://x.com/privacy
+                          - text: and
+                          - link "Cookie Use" [ref=e92] [cursor=pointer]:
+                            - /url: https://help.x.com/rules-and-policies/twitter-cookies
+                          - text: .
+      - main [ref=e13]:
+        - generic [ref=e93]:
+          - generic [ref=e94]:
+            - generic [ref=e96]:
+              - heading "Happening now." [level=1] [ref=e97]
+              - generic [ref=e101]:
+                - generic [ref=e102]:
+                  - button "Continue with phone" [ref=e103] [cursor=pointer]:
+                    - generic [ref=e105]:
+                      - img [ref=e107]
+                      - paragraph [ref=e110]: Continue with phone
+                  - iframe [ref=e114]:
+                    - button "Continue with Google. Opens in new tab" [ref=f4e3] [cursor=pointer]:
+                      - generic [ref=f4e5]:
+                        - img [ref=f4e7]
+                        - generic [ref=f4e14]: Continue with Google
+                  - button "Continue with Apple" [ref=e115] [cursor=pointer]:
+                    - generic [ref=e117]:
+                      - img [ref=e119]
+                      - paragraph [ref=e122]: Continue with Apple
+                - paragraph [ref=e126]: or
+                - generic [ref=e129]:
+                  - generic: Email or username
+                  - textbox [ref=e130]
+                  - textbox
+                - paragraph [ref=e134]: Continue
+                - paragraph [ref=e138]:
+                  - text: By continuing, you agree to our
+                  - link "Terms of Service" [ref=e139] [cursor=pointer]:
+                    - /url: https://x.com/tos
+                  - text: ","
+                  - link "Privacy Policy" [ref=e140] [cursor=pointer]:
+                    - /url: https://x.com/privacy
+                  - text: and
+                  - link "Cookie Use" [ref=e141] [cursor=pointer]:
+                    - /url: https://help.x.com/rules-and-policies/twitter-cookies
+                  - text: .
+            - img [ref=e143]
+          - navigation "Footer" [ref=e147]:
+            - generic [ref=e148]:
+              - link "About" [ref=e149] [cursor=pointer]:
+                - /url: https://about.x.com
+              - generic [ref=e150]: "|"
+            - generic [ref=e151]:
+              - link "Download the X app" [ref=e152] [cursor=pointer]:
+                - /url: https://help.x.com/using-x/download-the-x-app
+              - generic [ref=e153]: "|"
+            - generic [ref=e154]:
+              - link "Grok" [ref=e155] [cursor=pointer]:
+                - /url: https://grok.com/
+              - generic [ref=e156]: "|"
+            - generic [ref=e157]:
+              - link "Help Center" [ref=e158] [cursor=pointer]:
+                - /url: https://help.x.com
+              - generic [ref=e159]: "|"
+            - generic [ref=e160]:
+              - link "Terms of Service" [ref=e161] [cursor=pointer]:
+                - /url: https://x.com/tos
+              - generic [ref=e162]: "|"
+            - generic [ref=e163]:
+              - link "Privacy Policy" [ref=e164] [cursor=pointer]:
+                - /url: https://x.com/privacy
+              - generic [ref=e165]: "|"
+            - generic [ref=e166]:
+              - link "Cookie Policy" [ref=e167] [cursor=pointer]:
+                - /url: https://support.x.com/articles/20170514
+              - generic [ref=e168]: "|"
+            - generic [ref=e169]:
+              - link "Accessibility" [ref=e170] [cursor=pointer]:
+                - /url: https://help.x.com/resources/accessibility
+              - generic [ref=e171]: "|"
+            - generic [ref=e172]:
+              - link "Ads info" [ref=e173] [cursor=pointer]:
+                - /url: https://business.x.com/en/help/troubleshooting/how-twitter-ads-work.html?ref=web-twc-ao-gbl-adsinfo&utm_source=twc&utm_medium=web&utm_campaign=ao&utm_content=adsinfo
+              - generic [ref=e174]: "|"
+            - generic [ref=e175]:
+              - link "Blog" [ref=e176] [cursor=pointer]:
+                - /url: https://blog.x.com
+              - generic [ref=e177]: "|"
+            - generic [ref=e178]:
+              - link "Careers" [ref=e179] [cursor=pointer]:
+                - /url: https://careers.x.com
+              - generic [ref=e180]: "|"
+            - generic [ref=e181]:
+              - link "Brand Resources" [ref=e182] [cursor=pointer]:
+                - /url: https://about.x.com/press/brand-assets
+              - generic [ref=e183]: "|"
+            - generic [ref=e184]:
+              - link "Advertising" [ref=e185] [cursor=pointer]:
+                - /url: https://ads.x.com/?ref=gl-tw-tw-twitter-advertise
+              - generic [ref=e186]: "|"
+            - generic [ref=e187]:
+              - link "Marketing" [ref=e188] [cursor=pointer]:
+                - /url: https://marketing.x.com
+              - generic [ref=e189]: "|"
+            - generic [ref=e190]:
+              - link "X for Business" [ref=e191] [cursor=pointer]:
+                - /url: https://business.x.com/?ref=web-twc-ao-gbl-twitterforbusiness&utm_source=twc&utm_medium=web&utm_campaign=ao&utm_content=twitterforbusiness
+              - generic [ref=e192]: "|"
+            - generic [ref=e193]:
+              - link "Developers" [ref=e194] [cursor=pointer]:
+                - /url: https://developer.x.com
+              - generic [ref=e195]: "|"
+            - generic [ref=e196]:
+              - link "News" [ref=e197] [cursor=pointer]:
+                - /url: https://x.com/i/jf/stories/home
+              - generic [ref=e198]: "|"
+            - generic [ref=e199]:
+              - link "Settings" [ref=e200] [cursor=pointer]:
+                - /url: /settings
+              - generic [ref=e201]: "|"
+            - generic [ref=e202]: © 2026 X Corp.

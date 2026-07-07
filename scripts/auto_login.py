@@ -53,13 +53,10 @@ def _find_chrome():
             if p and os.path.exists(p):
                 return p
         return None
-    else:
-        import shutil
-        for bin in ('google-chrome', 'chromium-browser', 'chromium',
-                     '/usr/bin/google-chrome', '/usr/bin/chromium-browser'):
-            if os.path.exists(bin) or shutil.which(bin):
-                return bin
-        return None
+    for bin in ('/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/snap/bin/chromium'):
+        if os.path.exists(bin):
+            return bin
+    return None
 
 
 def main():
